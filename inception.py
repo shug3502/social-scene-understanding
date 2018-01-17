@@ -4,8 +4,8 @@ from tensorflow.contrib.slim.python.slim.nets.inception_v3 import inception_v3_b
 
 def process_images(images):
   images = tf.to_float(images) / 255.0
-  images = tf.sub(images, 0.5)
-  images = tf.mul(images, 2.0)
+  images = tf.subtract(images, 0.5)
+  images = tf.multiply(images, 2.0)
   return images
 
 

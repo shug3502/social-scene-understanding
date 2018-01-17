@@ -69,10 +69,10 @@ class Config(object):
 
 c = Config()
 # NOTE: you have to fill this
-c.models_path = '<path-to-models>'
-c.data_path = '<path-to-data>'
+c.models_path = 'models'
+c.data_path = '../../Data/videos'
 # reading images of a certain resolution
-c.images_path = '/%dp' % c.image_size[0]
+c.images_path = '../../Data/videos'
 # you can download pre-trained models at
 # http://download.tensorflow.org/models/inception_v3_2016_08_28.tar.gz
 c.inception_model_path = c.models_path + '/imagenet/inception_v3.ckpt'
@@ -86,8 +86,8 @@ all_anns = {**train, **test}
 all_frames = train_frames + test_frames
 
 # these you can get in the repository
-src_image_size = pickle.load(open(c.data_path + '/src_image_size.pkl', 'rb'))
-all_tracks = pickle.load(open(c.data_path + '/tracks_normalized.pkl', 'rb'))
+src_image_size = pickle.load(open(c.data_path + '/src_image_size.pkl', 'rb')) #contains image sizes for reference
+all_tracks = pickle.load(open(c.data_path + '/tracks_normalized.pkl', 'rb')) #dict of dicts, contains bounding boxes of all players
 
 
 def load_samples_full(anns, tracks, images_path, frames, num_boxes=12):
@@ -101,6 +101,15 @@ def load_samples_full(anns, tracks, images_path, frames, num_boxes=12):
     images.append(skimage.io.imread(images_path + '/%d/%d/%d.jpg' %
                                     (sid, src_fid, fid)))
     image_size = images[-1].shape[:2]
+    """
+    print(image_size)
+    if image_size!=default_image_size:
+      print('oops')
+      print(images_path + '/%d/%d/%d.jpg' %
+                                    (sid, src_fid, fid) + 'was wrong size\n')
+      images[-1] = tf.image.resize_images(images[-1],default_image_size)
+      image_size = images[-1].shape[:2]
+    """
 
     yx = np.mgrid[0:image_size[0],0:image_size[1]]
 
@@ -183,16 +192,16 @@ with tf.device('/gpu:0'):
                                                   is_training=False,
                                                   create_logits=False,
                                                   scope='InceptionV3')
-  inception_vars = tf.get_collection(tf.GraphKeys.VARIABLES, 'InceptionV3')
+  inception_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, 'InceptionV3')
 
   # extracting multiscale features
   features_multiscale = []
   for name in c.features_multiscale_names:
     features = inception_endpoints[name]
     if features.get_shape()[1:3] != tf.TensorShape([OH, OW]):
-      features = tf.image.resize_images(features, OH, OW)
+      features = tf.image.resize_images(features, [OH, OW])
     features_multiscale.append(features)
-  features_multiscale = tf.concat(3, features_multiscale)
+  features_multiscale = tf.concat(features_multiscale, 3)
 
   if c.build_detnet:
     seg_preds, reg_preds, boxes_proposals, detections = det_net(features_multiscale,
@@ -202,7 +211,7 @@ with tf.device('/gpu:0'):
                                                                 [H, W],
                                                                 c.nms_kind)
     boxes_preds, boxes_confidence = detections
-    det_net_vars = tf.get_collection(tf.GraphKeys.VARIABLES, 'DetNet')
+    det_net_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, 'DetNet')
 
   with tf.variable_scope('ActNet'):
     boxes_flat = tf.reshape(boxes_gt_in, [B*N,4])
@@ -252,10 +261,10 @@ with tf.device('/gpu:0'):
       activities_in_one_hot = slim.one_hot_encoding(activities_in, c.num_activities)
       activities_loss = - tf.reduce_mean(activities_in_one_hot * tf.log(activities_preds + EPS))
 
-  act_net_vars = tf.get_collection(tf.GraphKeys.VARIABLES, 'ActNet')
+  act_net_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, 'ActNet')
 
   with tf.variable_scope('train'):
-    global_step = slim.create_global_step()
+    global_step = tf.train.create_global_step()  #slim.create_global_step()
 
     detection_loss = det_net_loss(seg_masks_in, reg_masks_in,
                                   seg_preds, reg_preds,
@@ -268,7 +277,7 @@ with tf.device('/gpu:0'):
                                   global_step,
                                   c.train_learning_rate,
                                   tf.train.AdamOptimizer)
-  train_vars = tf.get_collection(tf.GraphKeys.VARIABLES, 'train')
+  train_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, 'train')
 
 # TODO: generate the tag
 c.tag = ('single-actions-%d-%dx%d-weight-%.1f' %
@@ -320,6 +329,7 @@ with tf.Session(config=tf_config) as sess:
     frames = volley_random_frames(train, c.batch_size)
     batch = load_samples_full(all_anns, all_tracks, c.images_path, frames, c.num_boxes)
 
+    print(batch[0].shape)
     feed_dict = {
       images_in : batch[0],
       activities_in : batch[1],

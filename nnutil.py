@@ -36,7 +36,7 @@ def resize_concat(values, height, width,
   """
   resized = [tf.image.resize_images(value, height, width, resize_method)
              for value in values]
-  return tf.concat(3, resized)
+  return tf.concat(resized,  3)
 
 def pairwise_distance(X):
   """

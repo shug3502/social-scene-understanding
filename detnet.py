@@ -10,8 +10,8 @@ def grid_2d(in_size, out_size=None):
                                  indexing='ij')
 
   if not out_size is None:
-    grid_yxs = tf.image.resize_images(tf.pack([grid_ys, grid_xs], axis=2),
-                                      out_size[0], out_size[1])
+    grid_yxs = tf.image.resize_images(tf.stack([grid_ys, grid_xs], axis=2),
+                                      [out_size[0], out_size[1]])
     grid_ys, grid_xs = grid_yxs[:,:,0], grid_yxs[:,:,1]
 
   grid_ys = grid_ys / tf.to_float(in_size[0])
@@ -21,7 +21,7 @@ def grid_2d(in_size, out_size=None):
 def reg_to_boxes(reg_preds, in_size, out_size):
   '''converting relative predictions to global bbox coordinates'''
   grid_ys, grid_xs = grid_2d(in_size, out_size)
-  return tf.pack([grid_ys - reg_preds[:,:,:,0],
+  return tf.stack([grid_ys - reg_preds[:,:,:,0],
                   grid_xs - reg_preds[:,:,:,1],
                   grid_ys + reg_preds[:,:,:,2],
                   grid_xs + reg_preds[:,:,:,3]],
@@ -201,10 +201,10 @@ def det_net_loss(seg_masks_in, reg_masks_in,
   with tf.variable_scope('loss'):
     out_size = seg_preds.get_shape()[1:3]
     seg_masks_in_ds = tf.image.resize_images(seg_masks_in[:,:,:,tf.newaxis],
-                                             out_size[0], out_size[1],
+                                             [out_size[0], out_size[1]],
                                              tf.image.ResizeMethod.NEAREST_NEIGHBOR)
     reg_masks_in_ds = tf.image.resize_images(reg_masks_in,
-                                             out_size[0], out_size[1],
+                                             [out_size[0], out_size[1]],
                                              tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
     # segmentation loss

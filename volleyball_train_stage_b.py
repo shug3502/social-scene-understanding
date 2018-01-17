@@ -68,7 +68,7 @@ class Config(object):
     self.train_dropout_prob = 0.8
     self.train_save_every_steps = 500
 
-src_model_config = '<path-to-your-stage-a-config-pickle>'
+src_model_config = 'models/activity/volleyball/config-single-actions-2048-5x5-weight-0.5.pkl'
 
 # we load config from the first stage
 c = pickle.load(open(src_model_config, 'rb'))
@@ -96,11 +96,11 @@ train = volley_read_dataset(c.data_path, TRAIN_SEQS + VAL_SEQS)
 train_frames = volley_all_frames(train)
 test = volley_read_dataset(c.data_path, TEST_SEQS)
 test_frames = volley_all_frames(test)
-src_image_size = pickle.load(open(c.data_path + '/src_image_size.pkl', 'rb'))
+src_image_size = pickle.load(open(c.data_path + '/src_image_size.pkl', 'rb')) #contains image sizes for each video, not used
 
 all_anns = {**train, **test}
 all_frames = train_frames + test_frames
-all_tracks = pickle.load(open(c.data_path + '/tracks_normalized.pkl', 'rb'))
+all_tracks = pickle.load(open(c.data_path + '/tracks_normalized.pkl', 'rb')) #a dict of dicts containing the bboxes
 
 
 # In[7]:
@@ -170,16 +170,16 @@ with tf.device('/gpu:0'):
                                                   is_training=False,
                                                   create_logits=False,
                                                   scope='InceptionV3')
-  inception_vars = tf.get_collection(tf.GraphKeys.VARIABLES, 'InceptionV3')
+  inception_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, 'InceptionV3')
 
   # extracting multiscale features
   features_multiscale = []
   for name in c.features_multiscale_names:
     features = inception_endpoints[name]
     if features.get_shape()[1:3] != tf.TensorShape([OH, OW]):
-      features = tf.image.resize_images(features, OH, OW)
+      features = tf.image.resize_images(features, [OH, OW])
     features_multiscale.append(features)
-  features_multiscale = tf.concat(3, features_multiscale)
+  features_multiscale = tf.concat(features_multiscale,3)
 
   if c.build_detnet:
     # TODO: instead of boxes_in
@@ -190,7 +190,7 @@ with tf.device('/gpu:0'):
                                                                 [H, W],
                                                                 c.nms_kind)
     boxes_preds, boxes_confidence = detections
-    det_net_vars = tf.get_collection(tf.GraphKeys.VARIABLES, 'DetNet')
+    det_net_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, 'DetNet')
 
 
   with tf.variable_scope('ActNet'):
@@ -208,7 +208,7 @@ with tf.device('/gpu:0'):
     with tf.variable_scope('shared'):
       boxes_features_flat = slim.fully_connected(boxes_features_multiscale_flat, NFB)
       boxes_features_flat_dropout = slim.dropout(boxes_features_flat, dropout_keep_prob_in)
-    shared_vars = tf.get_collection(tf.GraphKeys.VARIABLES, 'ActNet/shared')
+    shared_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, 'ActNet/shared')
 
     with tf.variable_scope('sequence'):
       # embedding to "hidden space"
@@ -240,7 +240,7 @@ with tf.device('/gpu:0'):
             raise RuntimeError('Unknown match_kind: %s' % c.match_kind)
 
           def _construct_update(reuse):
-            state = tf.concat(1, [state_prev, hidden[t]])
+            state = tf.concat([state_prev, hidden[t]], 1)
             # TODO: initialize jointly
             reset = slim.fully_connected(state, NFH, tf.nn.sigmoid,
                                          reuse=reuse,
@@ -248,7 +248,7 @@ with tf.device('/gpu:0'):
             step = slim.fully_connected(state, NFH, tf.nn.sigmoid,
                                         reuse=reuse,
                                         scope='step')
-            state_r = tf.concat(1, [reset * state_prev, hidden[t]])
+            state_r = tf.concat([reset * state_prev, hidden[t]], 1)
             state_up = slim.fully_connected(state_r, NFH, tf.nn.tanh,
                                             reuse=reuse,
                                             scope='state_up')
@@ -260,7 +260,7 @@ with tf.device('/gpu:0'):
 
           state = step * state_up + (1.0 - step) * state_prev
           states.append(state)
-        return tf.pack(states)
+        return tf.stack(states)
 
       boxes_states = tf.map_fn(_construct_sequence,
                                [boxes_hidden, boxes_in],
@@ -302,17 +302,17 @@ with tf.device('/gpu:0'):
         activities_avg_accuracy = tf.reduce_mean(tf.to_float(tf.equal(activities_avg_labels,
                                                                       activities_in[:,5])))
 
-    sequence_vars = tf.get_collection(tf.GraphKeys.VARIABLES, 'ActNet/sequence')
+    sequence_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, 'ActNet/sequence')
 
   with tf.variable_scope('train'):
-    global_step = slim.create_global_step()
+    global_step = tf.train.create_global_step()
     learning_rate = c.train_learning_rate
     total_loss = activities_loss + c.actions_loss_weight * actions_loss
     train_op = slim.optimize_loss(total_loss,
                                   global_step,
                                   learning_rate,
                                   tf.train.AdamOptimizer)
-  train_vars = tf.get_collection(tf.GraphKeys.VARIABLES, 'train')
+  train_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, 'train')
 
 
 # TODO: generate the tag
@@ -368,6 +368,7 @@ with tf.Session(config=tf_config) as sess:
     batch = load_samples_sequence(all_anns, all_tracks, c.images_path, batch_frames)
     batch = [b.reshape((c.batch_size,c.num_frames) + b.shape[1:]) for b in batch]
 
+    print(batch[0].shape)
     feed_dict = {
       images_in : batch[0],
       activities_in : batch[1],
