@@ -1,7 +1,7 @@
 import numpy as np
 
 TRAIN_SEQS = [1,3,6,7,10,13,15,16,18,22,23,31,32,36,38,39,40,41,42,48,50,52,53,54]
-VAL_SEQS = [0,8,12,17,19,24,26,27,28,30,33,46,49,51] #excluding video 2 as I messed up with processing/resizing images
+VAL_SEQS = [0,2,8,12,17,19,24,26,27,28,30,33,46,49,51]
 TEST_SEQS = [4,5,9,11,14,20,21,25,29,34,35,37,43,44,45,47]
 
 ACTIVITIES = ['r_set', 'r_spike', 'r-pass', 'r_winpoint',
