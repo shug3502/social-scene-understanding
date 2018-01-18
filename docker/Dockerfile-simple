@@ -1,0 +1,7 @@
+FROM shug3502/ssu_first_image:req
+MAINTAINER Jonathan Harrison <jonathan.harrison@hudl.com>
+
+WORKDIR /ssu
+
+EXPOSE 8888 6006 22
+CMD bash

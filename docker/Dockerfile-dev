@@ -1,0 +1,12 @@
+FROM shug3502/ssu_first_image:req
+MAINTAINER Jonathan Harrison <jonathan.harrison@hudl.com>
+
+RUN pip install jupyter==1.0.0
+RUN mkdir ~/.jupyter
+COPY docker/jupyter_notebook_config.py /root/.jupyter/jupyter_notebook_config.py
+RUN jupyter nbextension enable --py --sys-prefix widgetsnbextension
+
+WORKDIR /social-scene-understanding
+
+EXPOSE 8888 6006 22
+CMD jupyter notebook --no-browser --ip '*' --log-level 'DEBUG' --allow-root

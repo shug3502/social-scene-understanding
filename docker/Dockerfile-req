@@ -1,0 +1,25 @@
+FROM nvidia/cuda:8.0-cudnn6-devel-ubuntu16.04
+MAINTAINER Jonathan Harrison <jonathan.harrison@hudl.com>
+
+RUN apt-get update -y && apt-get install nano wget git zip openssh-client libgtk2.0-0 -y
+
+ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
+
+# Install miniconda
+RUN wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    --quiet -O miniconda.sh && bash ./miniconda.sh -b && rm miniconda.sh
+ENV PATH $PATH:/root/miniconda3/bin/
+RUN conda install python=3.6.4
+RUN conda install pip -y
+
+RUN apt-get update -y && apt-get install python-qt4 -y
+RUN mkdir -p /root/.config/matplotlib && echo "backend: agg\n" > /root/.config/matplotlib/matplotlibrc
+
+# Point pip to our pypi
+RUN mkdir -p /root/.pip/ && printf "[global]\nindex-url = http://pypi.hudltools.com\ntrusted-host = pypi.hudltools.com\n" >> /root/.pip/pip.conf
+
+# Install requirements
+WORKDIR /social-scene-understanding
+COPY requirements.txt .
+RUN sed -i 's/tensorflow==/tensorflow-gpu==/' requirements.txt
+RUN pip install -r requirements.txt
