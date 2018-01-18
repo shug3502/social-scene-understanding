@@ -1,2 +1,5 @@
 models/imagenet/
 logs/
+__pycache__/
+*/*/*/*.ckpt*
+*/*/*/checkpoint

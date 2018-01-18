@@ -28,7 +28,7 @@ class Config(object):
     # shared
     self.image_size = 720, 1280
     self.out_size = 87, 157
-    self.batch_size = 8
+    self.batch_size = 4
     self.num_boxes = 12
     self.epsilon = 1e-5
     self.features_multiscale_names = ['Mixed_5d', 'Mixed_6e']
@@ -70,9 +70,9 @@ class Config(object):
 c = Config()
 # NOTE: you have to fill this
 c.models_path = 'models'
-c.data_path = '../../Data/videos'
+c.data_path = '/data1/jonathan/volleyball/videos/'
 # reading images of a certain resolution
-c.images_path = '../../Data/videos'
+c.images_path = '/data1/jonathan/volleyball/videos/'
 # you can download pre-trained models at
 # http://download.tensorflow.org/models/inception_v3_2016_08_28.tar.gz
 c.inception_model_path = c.models_path + '/imagenet/inception_v3.ckpt'
@@ -170,7 +170,7 @@ def attention_weights(features, tau=10.0, num_hidden=512):
 
 tf.reset_default_graph()
 
-with tf.device('/gpu:0'):
+with tf.device('/gpu:2'):
   H, W = c.image_size
   OH, OW = c.out_size
   B, T, N = c.batch_size, c.num_frames, c.num_boxes
