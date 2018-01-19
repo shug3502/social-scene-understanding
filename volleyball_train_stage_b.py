@@ -75,7 +75,7 @@ c = pickle.load(open(src_model_config, 'rb'))
 
 c.tag = c.tag.replace('single', 'temporal')
 # smaller batch size for the temporal
-c.batch_size = 4
+c.batch_size = 3
 # not finetuning inception at training
 c.train_inception = False
 # don't need detection net during training
