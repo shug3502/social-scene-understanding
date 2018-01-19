@@ -170,7 +170,7 @@ def attention_weights(features, tau=10.0, num_hidden=512):
 
 tf.reset_default_graph()
 
-with tf.device('/gpu:2'):
+with tf.device('/gpu:0'):
   H, W = c.image_size
   OH, OW = c.out_size
   B, T, N = c.batch_size, c.num_frames, c.num_boxes
@@ -329,7 +329,6 @@ with tf.Session(config=tf_config) as sess:
     frames = volley_random_frames(train, c.batch_size)
     batch = load_samples_full(all_anns, all_tracks, c.images_path, frames, c.num_boxes)
 
-    print(batch[0].shape)
     feed_dict = {
       images_in : batch[0],
       activities_in : batch[1],
